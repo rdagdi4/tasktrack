@@ -28,7 +28,7 @@ public class User {
     private String fullName;
 
     @NotBlank
-    // @Column(nullable = false)
+    // @Column
     private enum role {
         ADMIN, PROJECT_MANAGER, DEVELOPER, TESTER
     };

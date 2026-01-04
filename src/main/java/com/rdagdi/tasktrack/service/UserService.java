@@ -29,8 +29,9 @@ public class UserService {
     }
 
     // Update User
-    public User updateUser(User user) {
-        return userRepository.save(user);
+    public User updateUser(Long Id) {
+        System.out.println("User updated successfully");
+        return userRepository.findById(Id).orElse(null);
     }
 
     // Delete User
