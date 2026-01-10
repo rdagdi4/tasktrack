@@ -5,40 +5,310 @@ import org.springframework.stereotype.Service;
 
 import com.rdagdi.tasktrack.repository.UserRepository;
 import com.rdagdi.tasktrack.entity.User;
+import com.rdagdi.tasktrack.exception.UserNotFoundException;
+import com.rdagdi.tasktrack.exception.DuplicateUserException;
+
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     @Autowired
     private UserRepository userRepository;
 
-    // Create User
+    // ========== CREATE ==========
+
+    /**
+     * Create a new user with validation
+     * Validates: username uniqueness, email uniqueness
+     *
+     * @param user The user to create
+     * @return The created user
+     * @throws DuplicateUserException if username or email already exists
+     */
     public User createUser(User user) {
-        return userRepository.save(user);
+        logger.info("Creating new user with username: {}", user.getUserName());
+
+        // Validate username uniqueness
+        if (userRepository.existsByUserName(user.getUserName())) {
+            logger.warn("Username already exists: {}", user.getUserName());
+            throw new DuplicateUserException("Username already exists: " + user.getUserName());
+        }
+
+        // Validate email uniqueness
+        if (userRepository.existsByEmail(user.getEmail())) {
+            logger.warn("Email already exists: {}", user.getEmail());
+            throw new DuplicateUserException("Email already exists: " + user.getEmail());
+        }
+
+        // Save the user
+        User savedUser = userRepository.save(user);
+        logger.info("User created successfully with ID: {}", savedUser.getId());
+
+        return savedUser;
     }
 
-    // Get User by ID
+    // ========== READ ==========
+
+    /**
+     * Get user by ID
+     *
+     * @param id The user ID
+     * @return The found user
+     * @throws UserNotFoundException if user not found
+     */
     public User getUserById(Long id) {
-        return userRepository.findById(id).orElse(null);
+        logger.debug("Fetching user with ID: {}", id);
+
+        return userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
     }
 
-    // Get All Users
+    /**
+     * Get user by username
+     *
+     * @param username The username
+     * @return The found user
+     * @throws UserNotFoundException if user not found
+     */
+    public User getUserByUsername(String username) {
+        logger.debug("Fetching user with username: {}", username);
+
+        return userRepository.findByUserName(username)
+                .orElseThrow(() -> new UserNotFoundException("User not found with username: " + username));
+    }
+
+    /**
+     * Get user by email
+     *
+     * @param email The email
+     * @return The found user
+     * @throws UserNotFoundException if user not found
+     */
+    public User getUserByEmail(String email) {
+        logger.debug("Fetching user with email: {}", email);
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+    }
+
+    /**
+     * Get all users
+     *
+     * @return List of all users (including inactive)
+     */
     public List<User> getAllUsers() {
+        logger.debug("Fetching all users");
         return userRepository.findAll();
     }
 
-    // Update User
-    public User updateUser(Long Id) {
-        System.out.println("User updated successfully");
-        return userRepository.findById(Id).orElse(null);
+    /**
+     * Get all active users
+     *
+     * @return List of active users
+     */
+    public List<User> getAllActiveUsers() {
+        logger.debug("Fetching all active users");
+        return userRepository.findByActive(true);
     }
 
-    // Delete User
-    public void deleteUser(Long id) {
+    /**
+     * Get users by role
+     *
+     * @param role The user role
+     * @return List of users with the specified role
+     */
+    public List<User> getUsersByRole(User.Role role) {
+        logger.debug("Fetching users with role: {}", role);
+        return userRepository.findByRole(role);
+    }
+
+    // ========== UPDATE ==========
+
+    /**
+     * Update an existing user
+     * Note: Some fields like createdAt cannot be updated (protected by JPA)
+     *
+     * @param id          The user ID to update
+     * @param updatedUser The user object with updated data
+     * @return The updated user
+     * @throws UserNotFoundException  if user not found
+     * @throws DuplicateUserException if username/email conflicts with another user
+     */
+    public User updateUser(Long id, User updatedUser) {
+        logger.info("Updating user with ID: {}", id);
+
+        // Check if user exists
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        // Validate username uniqueness (if changed)
+        if (!existingUser.getUserName().equals(updatedUser.getUserName())) {
+            if (userRepository.existsByUserName(updatedUser.getUserName())) {
+                logger.warn("Username already exists: {}", updatedUser.getUserName());
+                throw new DuplicateUserException("Username already exists: " + updatedUser.getUserName());
+            }
+        }
+
+        // Validate email uniqueness (if changed)
+        if (!existingUser.getEmail().equals(updatedUser.getEmail())) {
+            if (userRepository.existsByEmail(updatedUser.getEmail())) {
+                logger.warn("Email already exists: {}", updatedUser.getEmail());
+                throw new DuplicateUserException("Email already exists: " + updatedUser.getEmail());
+            }
+        }
+
+        // Update fields
+        existingUser.setUserName(updatedUser.getUserName());
+        existingUser.setEmail(updatedUser.getEmail());
+        existingUser.setFullName(updatedUser.getFullName());
+        existingUser.setRole(updatedUser.getRole());
+        existingUser.setActive(updatedUser.getActive());
+        // Note: createdAt is not updated (immutable field)
+        // Note: updatedAt is automatically updated by @UpdateTimestamp
+
+        User savedUser = userRepository.save(existingUser);
+        logger.info("User updated successfully: {}", id);
+
+        return savedUser;
+    }
+
+    // ========== DELETE ==========
+
+    /**
+     * Soft delete - deactivates user instead of permanently deleting
+     * This is the recommended approach for production systems
+     *
+     * @param id The user ID to deactivate
+     * @return The deactivated user
+     * @throws UserNotFoundException if user not found
+     */
+    public User deleteUser(Long id) {
+        logger.info("Soft deleting (deactivating) user with ID: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        user.setActive(false);
+        User deactivatedUser = userRepository.save(user);
+
+        logger.info("User deactivated successfully: {}", id);
+        return deactivatedUser;
+    }
+
+    /**
+     * Hard delete - permanently removes user from database
+     * WARNING: Use with caution! This cannot be undone.
+     * Only use for testing or compliance (GDPR deletion requests)
+     *
+     * @param id The user ID to permanently delete
+     * @throws UserNotFoundException if user not found
+     */
+    public void hardDeleteUser(Long id) {
+        logger.warn("HARD DELETING user with ID: {}", id);
+
+        if (!userRepository.existsById(id)) {
+            throw new UserNotFoundException(id);
+        }
+
         userRepository.deleteById(id);
+        logger.warn("User permanently deleted: {}", id);
     }
 
+    /**
+     * Reactivate a soft-deleted (inactive) user
+     *
+     * @param id The user ID to reactivate
+     * @return The reactivated user
+     * @throws UserNotFoundException if user not found
+     */
+    public User reactivateUser(Long id) {
+        logger.info("Reactivating user with ID: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        user.setActive(true);
+        User reactivatedUser = userRepository.save(user);
+
+        logger.info("User reactivated successfully: {}", id);
+        return reactivatedUser;
+    }
+
+    // ========== UTILITY METHODS ==========
+
+    /**
+     * Check if a username is available
+     *
+     * @param username The username to check
+     * @return true if available, false if taken
+     */
+    public boolean isUsernameAvailable(String username) {
+        return !userRepository.existsByUserName(username);
+    }
+
+    /**
+     * Check if an email is available
+     *
+     * @param email The email to check
+     * @return true if available, false if taken
+     */
+    public boolean isEmailAvailable(String email) {
+        return !userRepository.existsByEmail(email);
+    }
+
+    /**
+     * Get count of users by role
+     *
+     * @param role The role to count
+     * @return Number of users with that role
+     */
+    public long countUsersByRole(User.Role role) {
+        return userRepository.countByRole(role);
+    }
+
+    /**
+     * Get count of active users
+     *
+     * @return Number of active users
+     */
+    public long countActiveUsers() {
+        return userRepository.countByActive(true);
+    }
 }
 
-// Think about: Should you return the entity directly or create DTOs?
+/*
+ * DESIGN DECISIONS & BEST PRACTICES:
+ * 
+ * 1. DTOs vs Entities:
+ * - Current: Returning entities directly for simplicity
+ * - Production: Should create DTOs (UserDTO, CreateUserRequest,
+ * UpdateUserRequest)
+ * - Why DTOs: Decouple API from database, hide sensitive fields, control what's
+ * exposed
+ * 
+ * 2. Soft Delete vs Hard Delete:
+ * - Chosen: Soft delete as default (set active = false)
+ * - Why: Audit trail, data recovery, compliance, referential integrity
+ * - Hard delete available but should be used cautiously
+ * 
+ * 3. Validation:
+ * - Service layer validates business rules (uniqueness, existence)
+ * - Entity layer validates data format (@NotBlank, @Email, etc.)
+ * - Both layers work together for complete validation
+ * 
+ * 4. Exception Handling:
+ * - Custom exceptions (UserNotFoundException, DuplicateUserException)
+ * - Better than returning null or generic exceptions
+ * - Controller layer should handle these and return proper HTTP responses
+ * 
+ * 5. Logging:
+ * - Using SLF4J logger instead of System.out.println
+ * - Different levels: debug, info, warn, error
+ * - Production-ready logging for monitoring and debugging
+ */

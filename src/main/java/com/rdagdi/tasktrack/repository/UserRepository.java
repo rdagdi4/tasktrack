@@ -9,46 +9,50 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    // Find User By Id
-    Optional<User> findById(Long id);
 
-    // Find User By Full Name
-    List<User> findByFullName(String fullName);
+    // ========== Basic Finders ==========
 
-    // Find User By Username
-    List<User> findByUserName(String userName);
+    // Find by unique fields (return Optional since they're unique)
+    Optional<User> findByUserName(String userName);
 
-    // Find User By Email
-    List<User> findByEmail(String email);
+    Optional<User> findByEmail(String email);
 
-    // Find User By Role
-    List<User> findByRole(String role);
+    // ========== Existence Checks ==========
 
-    // Find User By Active
+    // Check if username/email already exists (for validation)
+    boolean existsByUserName(String userName);
+
+    boolean existsByEmail(String email);
+
+    // ========== Query by Status & Role ==========
+
+    // Find all active/inactive users
     List<User> findByActive(Boolean active);
 
-    // Find User Created On
-    List<User> findByCreatedAt(LocalDateTime createdAt);
+    // Find users by role
+    List<User> findByRole(User.Role role);
 
-    // Find User Updated On
-    List<User> findByUpdatedAt(LocalDateTime updatedAt);
+    // Find active users with specific role (combined query)
+    List<User> findByActiveAndRole(Boolean active, User.Role role);
 
-    // Find User Created Between
-    List<User> findByCreatedAtBetween(LocalDateTime fromCreatedAt, LocalDateTime toCreatedAt);
+    // ========== Search & Filtering ==========
 
-    // Find User Updated Between
-    List<User> findByUpdatedAtBetween(LocalDateTime fromUpdatedAt, LocalDateTime toUpdatedAt);
+    // Find users by partial name match (useful for search)
+    List<User> findByFullNameContainingIgnoreCase(String name);
 
-    // Find User Created Before
-    List<User> findByCreatedAtBefore(LocalDateTime createdAt);
+    // ========== Date Range Queries ==========
 
-    // Find User Updated Before
-    List<User> findByUpdatedAtBefore(LocalDateTime updatedAt);
+    // Find users created within a date range (for reports)
+    List<User> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
-    // Find User Created After
-    List<User> findByCreatedAtAfter(LocalDateTime createdAt);
+    // Find recently created users
+    List<User> findByCreatedAtAfter(LocalDateTime since);
 
-    // Find User Updated After
-    List<User> findByUpdatedAtAfter(LocalDateTime updatedAt);
+    // ========== Analytics/Stats ==========
 
+    // Count users by role (for dashboard)
+    long countByRole(User.Role role);
+
+    // Count active users
+    long countByActive(Boolean active);
 }
