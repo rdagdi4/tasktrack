@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rdagdi.tasktrack.dto.CreateUserRequest;
-import com.rdagdi.tasktrack.dto.PagedResponse;
 import com.rdagdi.tasktrack.dto.UpdateUserRequest;
 import com.rdagdi.tasktrack.dto.UserDTO;
 import com.rdagdi.tasktrack.dto.UserMapper;
@@ -49,91 +48,13 @@ public class UserController {
     }
 
     /**
-     * Get all users with pagination support.
-     * 
-     * <p>
-     * <b>Endpoint:</b> GET /api/users
-     * </p>
-     * 
-     * <h3>Query Parameters:</h3>
-     * <table border="1">
-     * <tr>
-     * <th>Parameter</th>
-     * <th>Type</th>
-     * <th>Default</th>
-     * <th>Description</th>
-     * </tr>
-     * <tr>
-     * <td>page</td>
-     * <td>int</td>
-     * <td>0</td>
-     * <td>Zero-based page index. First page is 0.</td>
-     * </tr>
-     * <tr>
-     * <td>size</td>
-     * <td>int</td>
-     * <td>10</td>
-     * <td>Number of items per page (1-100).</td>
-     * </tr>
-     * <tr>
-     * <td>sort</td>
-     * <td>String</td>
-     * <td>id,asc</td>
-     * <td>Sorting: property,direction. Allowed: userName, email, fullName, role,
-     * active, createdAt, updatedAt</td>
-     * </tr>
-     * </table>
-     * 
-     * <h3>Examples:</h3>
-     * <ul>
-     * <li>GET /api/users - First page, 10 users, default sort</li>
-     * <li>GET /api/users?page=0&size=5 - First page, 5 users</li>
-     * <li>GET /api/users?page=1&size=10 - Second page, 10 users</li>
-     * <li>GET /api/users?sort=userName,asc - Sorted by username ascending</li>
-     * <li>GET /api/users?sort=createdAt,desc - Sorted by creation date
-     * descending</li>
-     * <li>GET /api/users?page=0&size=10&sort=userName,asc - Combined</li>
-     * </ul>
-     * 
-     * <h3>Response Structure:</h3>
-     * 
-     * <pre>
-     * {
-     *   "content": [...],       // Array of UserDTO objects
-     *   "page": 0,              // Current page (0-indexed)
-     *   "size": 10,             // Items per page
-     *   "totalElements": 45,    // Total users in database
-     *   "totalPages": 5,        // Total available pages
-     *   "first": true,          // Is first page?
-     *   "last": false           // Is last page?
-     * }
-     * </pre>
-     * 
-     * @param pageable Pagination info (auto-populated from query params by Spring)
-     * @return Paginated response with users and metadata
+     * Get all users
+     * GET /api/users
      */
     @GetMapping
-    public ResponseEntity<PagedResponse<UserDTO>> getAllUsers(
-            @org.springframework.data.web.PageableDefault(size = 10, sort = "id") org.springframework.data.domain.Pageable pageable) {
-
-        // Fetch paginated users from service
-        org.springframework.data.domain.Page<User> userPage = userService.getAllUsers(pageable);
-
-        // Convert entities to DTOs
-        List<UserDTO> userDTOs = UserMapper.toDTOList(userPage.getContent());
-
-        // Build paginated response with metadata
-        PagedResponse<UserDTO> response = PagedResponse.<UserDTO>builder()
-                .content(userDTOs)
-                .page(userPage.getNumber())
-                .size(userPage.getSize())
-                .totalElements(userPage.getTotalElements())
-                .totalPages(userPage.getTotalPages())
-                .first(userPage.isFirst())
-                .last(userPage.isLast())
-                .build();
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        List<User> users = userService.getAllUsers();
+        return ResponseEntity.ok(UserMapper.toDTOList(users));
     }
 
     /**

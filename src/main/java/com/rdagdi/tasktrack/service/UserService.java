@@ -98,38 +98,13 @@ public class UserService {
     }
 
     /**
-     * Get all users (non-paginated)
+     * Get all users
      *
      * @return List of all users (including inactive)
      */
     public List<User> getAllUsers() {
         logger.debug("Fetching all users");
         return userRepository.findAll();
-    }
-
-    /**
-     * Get all users with pagination support.
-     * 
-     * <p>
-     * <b>Query Parameters:</b>
-     * </p>
-     * <ul>
-     * <li><b>page</b> - Zero-based page index (0 = first page). Default: 0</li>
-     * <li><b>size</b> - Number of items per page. Default: 10, Max: 100</li>
-     * <li><b>sort</b> - Sorting criteria: property,direction (e.g.,
-     * "userName,asc")</li>
-     * </ul>
-     * 
-     * <p>
-     * <b>Example:</b> GET /api/users?page=0&size=10&sort=createdAt,desc
-     * </p>
-     *
-     * @param pageable Pagination and sorting information from request
-     * @return Page of users with pagination metadata
-     */
-    public org.springframework.data.domain.Page<User> getAllUsers(org.springframework.data.domain.Pageable pageable) {
-        logger.debug("Fetching users - page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
-        return userRepository.findAll(pageable);
     }
 
     /**
